@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlackLine - Remote Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #333;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+
+        .screen-container {
+            background: #0a0a0a;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        #screenCanvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            cursor: crosshair;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #00d9ff;
+        }
+
+        .client-select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .client-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            color: #1a1a2e;
+            font-weight: bold;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 217, 255, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(90deg, #ff4757, #ff6b81);
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 71, 87, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .status-offline {
+            background: #ff4757;
+            box-shadow: 0 0 10px #ff4757;
+        }
+
+        .client-list {
+            list-style: none;
+        }
+
+        .client-list li {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .client-list li:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .client-list li.active {
+            background: rgba(0, 217, 255, 0.2);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .control-group input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .log-container {
+            background: #0a0a0a;
+            border-radius: 5px;
+            padding: 10px;
+            height: 150px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 3px 0;
+        }
+
+        .log-info { color: #00d9ff; }
+        .log-success { color: #00ff88; }
+        .log-error { color: #ff4757; }
+        .log-warning { color: #ffa502; }
+
+        .connection-status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .connection-status.connected {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+        }
+
+        .connection-status.disconnected {
+            background: rgba(255, 71, 87, 0.2);
+            border: 1px solid #ff4757;
+        }
+
+        .fps-counter {
+            text-align: center;
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🖥️ BlackLine Remote Control</h1>
+        </header>
+
+        <div class="main-content">
+            <div class="screen-container">
+                <canvas id="screenCanvas"></canvas>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel">
+                    <h2>📡 Connection</h2>
+                    <div id="connectionStatus" class="connection-status disconnected">
+                        <span class="status-indicator status-offline"></span>
+                        <span id="statusText">Disconnected</span>
+                    </div>
+                    <button id="connectBtn" class="btn btn-primary" onclick="connect()">Connect</button>
+                </div>
+
+                <div class="panel">
+                    <h2>🖥️ Clients</h2>
+                    <select id="clientSelect" class="client-select" onchange="selectClient()">
+                        <option value="">Select a client...</option>
+                    </select>
+                    <ul id="clientList" class="client-list"></ul>
+                </div>
+
+                <div class="panel">
+                    <h2>🎮 Controls</h2>
+                    <div class="control-group">
+                        <label>Open URL</label>
+                        <input type="text" id="urlInput" placeholder="https://example.com">
+                        <button class="btn btn-primary" style="margin-top: 5px;" onclick="openUrl()">Open in Browser</button>
+                    </div>
+                    <div class="control-group">
+                        <label>Type Text</label>
+                        <input type="text" id="textInput" placeholder="Text to type...">
+                        <button class="btn btn-primary" style="margin-top: 5px;" onclick="typeText()">Send Text</button>
+                    </div>
+                    <button class="btn btn-primary" onclick="requestScreenshot()">📸 Screenshot</button>
+                    <button class="btn btn-danger" onclick="shutdownClient()">🔌 Shutdown</button>
+                </div>
+
+                <div class="panel">
+                    <h2>📊 Stats</h2>
+                    <div class="fps-counter">
+                        FPS: <span id="fpsCounter">0</span>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>📜 Log</h2>
+                    <div id="logContainer" class="log-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== STATE ====================
+        let ws = null;
+        let selectedClientId = null;
+        let canvas = document.getElementById('screenCanvas');
+        let ctx = canvas.getContext('2d');
+        let frameCount = 0;
+        let lastFpsUpdate = Date.now();
+
+        // ==================== LOGGING ====================
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // ==================== CONNECTION ====================
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.hostname}:8765/ws/web-client`;
+            
+            log('Connecting to server...', 'info');
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                log('Connected to server!', 'success');
+                updateConnectionStatus(true);
+                loadClients();
+            };
+            
+            ws.onclose = function() {
+                log('Disconnected from server', 'error');
+                updateConnectionStatus(false);
+                // Auto-reconnect after 3 seconds
+                setTimeout(connect, 3000);
+            };
+            
+            ws.onerror = function(error) {
+                log('WebSocket error', 'error');
+            };
+            
+            ws.onmessage = function(event) {
+                handleMessage(event.data);
+            };
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusDiv = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('statusText');
+            const connectBtn = document.getElementById('connectBtn');
+            
+            if (connected) {
+                statusDiv.className = 'connection-status connected';
+                statusDiv.innerHTML = '<span class="status-indicator status-online"></span><span>Connected</span>';
+                connectBtn.textContent = 'Disconnect';
+                connectBtn.onclick = disconnect;
+            } else {
+                statusDiv.className = 'connection-status disconnected';
+                statusDiv.innerHTML = '<span class="status-indicator status-offline"></span><span>Disconnected</span>';
+                connectBtn.textContent = 'Connect';
+                connectBtn.onclick = connect;
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+        }
+
+        // ==================== MESSAGE HANDLING ====================
+        function handleMessage(data) {
+            try {
+                const message = JSON.parse(data);
+                
+                switch (message.type) {
+                    case 'clients_list':
+                        updateClientList(message.clients);
+                        break;
+                        
+                    case 'stream_frame':
+                        renderFrame(message.image);
+                        break;
+                        
+                    case 'screenshot':
+                        renderFrame(message.image);
+                        log('Screenshot received', 'success');
+                        break;
+                        
+                    case 'ack':
+                        log(`Command acknowledged: ${message.command}`, 'success');
+                        break;
+                        
+                    case 'error':
+                        log(`Error: ${message.message}`, 'error');
+                        break;
+                }
+            } catch (e) {
+                log(`Failed to parse message: ${e.message}`, 'error');
+            }
+        }
+
+        // ==================== CLIENT MANAGEMENT ====================
+        async function loadClients() {
+            try {
+                const response = await fetch('/clients');
+                const clients = await response.json();
+                updateClientList(clients);
+            } catch (e) {
+                log(`Failed to load clients: ${e.message}`, 'error');
+            }
+        }
+
+        function updateClientList(clients) {
+            const clientSelect = document.getElementById('clientSelect');
+            const clientList = document.getElementById('clientList');
+            
+            clientSelect.innerHTML = '<option value="">Select a client...</option>';
+            clientList.innerHTML = '';
+            
+            clients.forEach(client => {
+                // Add to dropdown
+                const option = document.createElement('option');
+                option.value = client.id;
+                option.textContent = `${client.name} (${client.status})`;
+                if (client.status === 'offline') {
+                    option.disabled = true;
+                }
+                clientSelect.appendChild(option);
+                
+                // Add to list
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span class="status-indicator ${client.status === 'online' ? 'status-online' : 'status-offline'}"></span>
+                    ${client.name} (ID: ${client.id})
+                `;
+                li.onclick = () => selectClientById(client.id);
+                if (client.id === selectedClientId) {
+                    li.classList.add('active');
+                }
+                clientList.appendChild(li);
+            });
+        }
+
+        function selectClient() {
+            const clientSelect = document.getElementById('clientSelect');
+            selectClientById(clientSelect.value);
+        }
+
+        function selectClientById(clientId) {
+            selectedClientId = clientId ? parseInt(clientId) : null;
+            
+            // Update UI
+            document.querySelectorAll('#clientList li').forEach(li => {
+                li.classList.remove('active');
+            });
+            
+            if (selectedClientId) {
+                log(`Selected client: ${selectedClientId}`, 'info');
+                startStream();
+            }
+        }
+
+        // ==================== STREAMING ====================
+        function startStream() {
+            if (!selectedClientId || !ws) return;
+            
+            log('Starting screen stream...', 'info');
+            ws.send(JSON.stringify({
+                type: 'start_stream',
+                client_id: selectedClientId
+            }));
+        }
+
+        function stopStream() {
+            if (!ws) return;
+            
+            ws.send(JSON.stringify({
+                type: 'stop_stream'
+            }));
+        }
+
+        function renderFrame(base64Image) {
+            const img = new Image();
+            img.onload = function() {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                
+                // Update FPS
+                frameCount++;
+                const now = Date.now();
+                if (now - lastFpsUpdate >= 1000) {
+                    document.getElementById('fpsCounter').textContent = frameCount;
+                    frameCount = 0;
+                    lastFpsUpdate = now;
+                }
+            };
+            img.src = 'data:image/jpeg;base64,' + base64Image;
+        }
+
+        // ==================== INPUT HANDLING ====================
+        canvas.addEventListener('mousedown', function(e) {
+            if (!selectedClientId || !ws) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = Math.round((e.clientX - rect.left) * scaleX);
+            const y = Math.round((e.clientY - rect.top) * scaleY);
+            
+            ws.send(JSON.stringify({
+                type: 'mouse_event',
+                client_id: selectedClientId,
+                event: 'mousedown',
+                x: x,
+                y: y,
+                button: e.button
+            }));
+        });
+
+        canvas.addEventListener('mousemove', function(e) {
+            if (!selectedClientId || !ws) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = Math.round((e.clientX - rect.left) * scaleX);
+            const y = Math.round((e.clientY - rect.top) * scaleY);
+            
+            ws.send(JSON.stringify({
+                type: 'mouse_event',
+                client_id: selectedClientId,
+                event: 'mousemove',
+                x: x,
+                y: y
+            }));
+        });
+
+        canvas.addEventListener('mouseup', function(e) {
+            if (!selectedClientId || !ws) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = Math.round((e.clientX - rect.left) * scaleX);
+            const y = Math.round((e.clientY - rect.top) * scaleY);
+            
+            ws.send(JSON.stringify({
+                type: 'mouse_event',
+                client_id: selectedClientId,
+                event: 'mouseup',
+                x: x,
+                y: y,
+                button: e.button
+            }));
+        });
+
+        canvas.addEventListener('wheel', function(e) {
+            if (!selectedClientId || !ws) return;
+            
+            e.preventDefault();
+            
+            ws.send(JSON.stringify({
+                type: 'mouse_event',
+                client_id: selectedClientId,
+                event: 'wheel',
+                deltaX: e.deltaX,
+                deltaY: e.deltaY
+            }));
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (!selectedClientId || !ws) return;
+            
+            // Don't capture when typing in inputs
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            ws.send(JSON.stringify({
+                type: 'keyboard_event',
+                client_id: selectedClientId,
+                event: 'keydown',
+                key: e.key,
+                code: e.code
+            }));
+        });
+
+        document.addEventListener('keyup', function(e) {
+            if (!selectedClientId || !ws) return;
+            
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            ws.send(JSON.stringify({
+                type: 'keyboard_event',
+                client_id: selectedClientId,
+                event: 'keyup',
+                key: e.key,
+                code: e.code
+            }));
+        });
+
+        // ==================== COMMANDS ====================
+        function sendCommand(command, data = {}) {
+            if (!selectedClientId || !ws) {
+                log('No client selected or not connected', 'error');
+                return;
+            }
+            
+            ws.send(JSON.stringify({
+                type: command,
+                client_id: selectedClientId,
+                ...data
+            }));
+            
+            log(`Sent command: ${command}`, 'info');
+        }
+
+        function openUrl() {
+            const url = document.getElementById('urlInput').value;
+            if (!url) {
+                log('Please enter a URL', 'warning');
+                return;
+            }
+            sendCommand('browser', { url: url });
+            document.getElementById('urlInput').value = '';
+        }
+
+        function typeText() {
+            const text = document.getElementById('textInput').value;
+            if (!text) {
+                log('Please enter text', 'warning');
+                return;
+            }
+            sendCommand('type', { text: text });
+            document.getElementById('textInput').value = '';
+        }
+
+        function requestScreenshot() {
+            sendCommand('screenshot_request');
+        }
+
+        function shutdownClient() {
+            if (confirm('Are you sure you want to shutdown this client?')) {
+                sendCommand('shutdown');
+            }
+        }
+
+        // ==================== INITIALIZATION ====================
+        window.onload = function() {
+            log('BlackLine Remote Control initialized', 'success');
+            // Auto-connect on page load
+            connect();
+        };
+    </script>
+</body>
+</html>
